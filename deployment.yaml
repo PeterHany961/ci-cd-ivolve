@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ivolve-app
+  namespace: ivolve
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ivolve-app
+  template:
+    metadata:
+      labels:
+        app: ivolve-app
+    spec:
+      containers:
+        - name: ivolve-app
+          image: DOCKERHUB_USER/ivolve-app:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DB_HOST
+              value: "db"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: "rootpassword"
+            - name: DB_NAME
+              value: "ivolve"
