@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            label 'docker-agent'
+            defaultContainer 'docker'
+        }
+    }
 
     environment {
         DOCKERHUB_USER = 'peter2976'
@@ -18,15 +23,19 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER} ."
+                container('docker') {
+                    sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER} ."
+                }
             }
         }
 
         stage('Push to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
-                    sh "echo \$DH_PASS | docker login -u \$DH_USER --password-stdin"
-                    sh "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                container('docker') {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                        sh "echo \$DH_PASS | docker login -u \$DH_USER --password-stdin"
+                        sh "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                    }
                 }
             }
         }
@@ -39,14 +48,22 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh "kubectl apply -f ${DEPLOY_FILE} -n ${K8S_NAMESPACE}"
-                sh "kubectl apply -f ${APP_SVC_FILE} -n ${K8S_NAMESPACE}"
+                sh """
+                    if command -v kubectl >/dev/null 2>&1; then
+                        kubectl apply -f ${DEPLOY_FILE} -n ${K8S_NAMESPACE}
+                        kubectl apply -f ${APP_SVC_FILE} -n ${K8S_NAMESPACE}
+                    else
+                        echo "kubectl is not installed in the current container. Add kubectl or a kubectl container to deploy."
+                    fi
+                """
             }
         }
 
         stage('Clean Local Image') {
             steps {
-                sh "docker rmi ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER} || true"
+                container('docker') {
+                    sh "docker rmi ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER} || true"
+                }
             }
         }
     }
