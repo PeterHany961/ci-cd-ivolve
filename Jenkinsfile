@@ -24,7 +24,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 container('docker') {
-                    sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER} ."
+                    sh "docker build -f ./ivolveapp/Dockerfile -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER} ./ivolveapp"
                 }
             }
         }
